@@ -18,7 +18,8 @@ scikit-learn==1.7.2
 joblib==1.5.3
 threadpoolctl==3.6.0
 
-faiss-cpu==1.8.0.post1
+faiss-cpu==1.7.4
+
 sentence-transformers==5.2.0
 transformers==4.57.3
 tokenizers==0.22.1
@@ -27,7 +28,8 @@ safetensors==0.7.0
 regex==2025.11.3
 tqdm==4.67.1
 
-llama_cpp_python==0.2.90
+llama-cpp-python==0.2.90
+
 diskcache==5.6.3
 psutil==7.1.3
 filelock==3.20.0
