@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+  <script>tailwind = { darkMode: 'class' }</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+
+
+<script>
+tailwind.config = {
+  plugins: [tailwindcssTypography]
+}
+</script>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+
+  <title>AI–ICT Instructional Support</title>
+
+
+
+<style>
+
+
+.chat-send-btn{
+  position:absolute;
+  right:24px;
+  bottom:20px;
+  width:42px;
+  height:42px;
+  border-radius:9999px;
+  background:black;
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 6px 16px rgba(0,0,0,.3);
+}
+
+/* ===============================
+   CHATGPT-STYLE CHAT FIX
+================================ */
+
+.chat-row {
+  display: flex;
+  width: 100%;
+}
+
+/* USER (RIGHT) */
+.chat-row.user {
+  justify-content: flex-end;
+}
+
+.chat-row.user .bubble {
+  max-width: 70%;
+  background: #020617;
+  color: white;
+  padding: 12px 14px;
+  border-radius: 16px 16px 0 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ASSISTANT (LEFT – FULL WIDTH LIKE INPUT) */
+.chat-row.assistant {
+  justify-content: flex-start;
+}
+
+.chat-row.assistant .bubble {
+  width: 100%;
+  max-width: 100%;
+  background: #f1f5f9;
+  color: #020617;
+  padding: 14px 16px;
+  border-radius: 16px 16px 16px 0;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+/* Markdown safety */
+.chat-row.assistant .prose {
+  max-width: 100%;
+}
+
+</style>
+
+
+</head>
+
+<body class="h-screen bg-gray-100 dark:bg-gray-900 dark:text-gray-100 flex overflow-hidden">
+
+<!-- ================= SIDEBAR ================= -->
+<aside id="sidebar"
+  class="bg-gray-900 text-white w-64 hidden md:flex flex-col">
+
+  <div class="p-4 font-bold text-lg border-b border-gray-700">
+    AI–ICT Tutor
+  </div>
+
+  <nav class="flex-1 p-3 space-y-2 text-sm">
+    <button data-role="all" onclick="showView('chat')" class="nav-btn">💬 Tutor Chat</button>
+    <button data-role="admin" onclick="showView('ingest')" class="nav-btn">📚 Ingest Knowledge</button>
+    <button data-role="lecturer" onclick="showView('lesson')" class="nav-btn">📝 Lesson Generator</button>
+    <button data-role="lecturer" onclick="showView('rubric')" class="nav-btn">✅ Rubric Feedback</button>
+    <button data-role="student" onclick="showView('survey')" class="nav-btn">📊 ICT Survey</button>
+
+    <button data-role="admin" onclick="location.href='/admin/users'" class="nav-btn">
+      👤 User Management
+    </button>
+
+    <button data-role="all" onclick="location.href='/change-password'" class="nav-btn">
+      🔑 Change Password
+    </button>
+
+    <button data-role="admin" onclick="logs()" class="nav-btn">📄 View Logs</button>
+
+    
+<button data-role="admin" onclick="showView('survey-responses')" class="nav-btn">
+  📋 Survey Responses
+</button>
+
+
+
+  </nav>
+
+
+
+  <div class="p-3 border-t border-gray-700 text-xs text-gray-400">
+    Offline-first • GGUF • RAG
+  </div>
+</aside>
+
+<!-- ================= MAIN ================= -->
+<div class="flex-1 flex flex-col">
+
+<header class="bg-white dark:bg-gray-800 px-4 py-3 flex justify-between">
+  <div class="flex items-center gap-3">
+    <button class="md:hidden text-xl" onclick="toggleSidebar()">☰</button>
+    <h1 class="font-semibold">AI–ICT Instructional Support</h1>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <span class="text-sm opacity-70">
+      {{ username }} ({{ role }})
+    </span>
+    <a href="{{ url_for('logout') }}"
+       class="px-3 py-1 rounded bg-black text-white text-sm">Logout</a>
+    <button onclick="toggleDarkMode()">🌙</button>
+  </div>
+</header>
+
+<main class="flex-1 overflow-y-auto p-6">
+
+
+<!-- ================= CHAT ================= -->
+<section id="view-chat" class="view hidden h-[calc(100vh-5rem)] flex flex-col">
+
+  <h2 class="font-semibold mb-3 max-w-3xl w-full mx-auto px-6">
+    Tutor Chat
+  </h2>
+
+  <!-- SCROLL AREA -->
+  <div id="chatScroll" class="flex-1 overflow-y-auto">
+    <div id="chatOut"
+         class="max-w-3xl w-full mx-auto px-6 py-6 space-y-4 pb-40">
+      <!-- chat rows injected here -->
+    </div>
+  </div>
+
+  <!-- INPUT BAR -->
+  <div class="border-t bg-white/80 dark:bg-gray-900/80 backdrop-blur">
+    <div class="max-w-3xl w-full mx-auto px-6 py-6">
+      <div class="relative">
+
+        <textarea id="chatMsg"
+          rows="1"
+          placeholder="Ask a question…"
+          class="w-full resize-none rounded-2xl border p-4 pr-14
+                 dark:bg-gray-800 dark:border-gray-700 focus:outline-none"
+          oninput="autoGrow(this)"></textarea>
+
+  <button id="chatSendBtn"
+  onclick="chat()" 
+  class="absolute right-3 bottom-3 h-10 w-10 rounded-full
+         bg-black text-white flex items-center justify-center
+         disabled:opacity-50">
+
+  <!-- DEFAULT ICON (shown when empty) -->
+  <svg id="chatDefaultIcon"
+       xmlns="http://www.w3.org/2000/svg"
+       class="h-5 w-5"
+       viewBox="0 0 24 24"
+       fill="currentColor">
+    <path d="M3 12h2v-2H3v2zm4 4h2V8H7v8zm4 2h2V6h-2v10zm4-4h2v-2h-2v2zm4-6h2v4h-2V8z"/>
+  </svg>
+
+  <!-- SEND ICON -->
+  <svg id="chatSendIcon" xmlns="http://www.w3.org/2000/svg"
+       class="hidden h-5 w-5" fill="none" viewBox="0 0 24 24"
+       stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 19V7m0 0l-6 6m6-6l6 6"/>
+  </svg>
+
+  <!-- LOADING -->
+  <svg id="chatLoadingIcon"
+       class="hidden h-5 w-5 animate-spin"
+       viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10"
+            stroke="currentColor" stroke-width="4"
+            class="opacity-25"/>
+    <path d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+          class="opacity-75"
+          fill="currentColor"/>
+  </svg>
+
+</button>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+
+
+<!-- ================= INGEST ================= -->
+<section id="view-ingest" class="view hidden max-w-3xl mx-auto">
+  <h2 class="font-semibold mb-2">Ingest Knowledge</h2>
+  <textarea id="kbText" class="input h-32"></textarea>
+  <input id="kbSource" class="input" placeholder="Source name"/>
+  <button onclick="ingest()" class="btn">Ingest</button>
+  <pre id="ingestOut" class="output mt-3"></pre>
+</section>
+
+
+
+
+<!-- ================= LESSON ================= -->
+<!-- <section id="view-lesson" class="view hidden max-w-3xl mx-auto">
+  <h2 class="font-semibold mb-2">Lesson Generator</h2>
+  <input id="subj" class="input" placeholder="Subject"/>
+  <input id="topic" class="input" placeholder="Topic"/>
+  <input id="level" class="input" value="College of Education"/>
+  <input id="dur" class="input" type="number" value="40"/>
+  <button onclick="lesson()" class="btn">Generate</button>
+  <pre id="lessonOut" class="output mt-3"></pre>
+</section> -->
+
+<!-- ================= LESSON ================= -->
+<section id="view-lesson" class="view hidden max-w-3xl mx-auto">
+  <h2 class="font-semibold mb-2">Lesson Generator</h2>
+
+  <input id="subj" class="input" placeholder="Subject"/>
+  <input id="topic" class="input" placeholder="Topic"/>
+  <input id="level" class="input" value="College of Education"/>
+  <input id="dur" class="input" type="number" value="40"/>
+
+  <!-- Generate Button with Rolling Action -->
+  <button id="lessonBtn"
+          onclick="lesson()"
+          class="btn flex items-center gap-2 justify-center">
+
+    <span id="lessonBtnText">Generate</span>
+
+    <!-- Spinner -->
+    <svg id="lessonSpinner"
+         class="hidden w-4 h-4 animate-spin"
+         viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"
+              stroke="currentColor"
+              stroke-width="4"
+              class="opacity-25"/>
+      <path d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+            class="opacity-75"
+            fill="currentColor"/>
+    </svg>
+  </button>
+
+  <pre id="lessonOut" class="output mt-3"></pre>
+</section>
+
+
+
+
+
+
+
+<!-- ================= RUBRIC ================= -->
+<section id="view-rubric" class="view hidden max-w-3xl mx-auto">
+  <h2 class="font-semibold mb-2">Rubric Feedback</h2>
+  <textarea id="lessonText" class="input h-28"></textarea>
+  <textarea id="rubricText" class="input h-28"></textarea>
+  <button onclick="feedback()" class="btn">Evaluate</button>
+  <pre id="fbOut" class="output mt-3"></pre>
+</section>
+
+
+
+
+<!-- ================= SURVEY ================= -->
+<section id="view-survey" class="view hidden max-w-5xl mx-auto bg-white dark:bg-gray-900 shadow rounded-lg p-5">
+
+  <h2 class="text-xl font-semibold mb-4 text-center">
+    ICT Instruction Survey
+  </h2>
+
+<!-- Progress Bar -->
+<div class="mb-4">
+  <div class="flex justify-between text-xs mb-1">
+    <span>Progress</span>
+    <span id="progressText">0%</span>
+  </div>
+  <div class="w-full bg-gray-200 rounded h-2">
+    <div id="progressBar"
+         class="bg-blue-600 h-2 rounded transition-all duration-300"
+         style="width:0%">
+    </div>
+  </div>
+</div>
+
+
+
+
+<!-- Likert Scale Guide -->
+<div class="mb-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm">
+  <p class="font-semibold mb-2 text-center">Response Guide</p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 text-center">
+    <div class="border rounded p-2">
+      <span class="font-bold">SD</span><br>
+      <span class="text-xs text-gray-600 dark:text-gray-300">
+        Strongly Disagree
+      </span>
+    </div>
+
+    <div class="border rounded p-2">
+      <span class="font-bold">D</span><br>
+      <span class="text-xs text-gray-600 dark:text-gray-300">
+        Disagree
+      </span>
+    </div>
+
+    <div class="border rounded p-2">
+      <span class="font-bold">N</span><br>
+      <span class="text-xs text-gray-600 dark:text-gray-300">
+        Neutral
+      </span>
+    </div>
+
+    <div class="border rounded p-2">
+      <span class="font-bold">A</span><br>
+      <span class="text-xs text-gray-600 dark:text-gray-300">
+        Agree
+      </span>
+    </div>
+
+    <div class="border rounded p-2">
+      <span class="font-bold">SA</span><br>
+      <span class="text-xs text-gray-600 dark:text-gray-300">
+        Strongly Agree
+      </span>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  <!-- Controls -->
+  <div class="flex flex-wrap justify-center gap-3 mb-4">
+    <select id="sampleSize" class="border rounded px-3 py-1">
+      <option>20</option>
+      <option selected>40</option>
+      <option>50</option>
+    </select>
+    <button onclick="buildSurvey()" class="btn">Apply</button>
+  </div>
+
+  <!-- Survey Table -->
+<div class="overflow-x-auto">
+  <table class="w-full border rounded text-center mb-4">
+    <thead class="bg-gray-100 dark:bg-gray-800">
+      <tr>
+        <th class="p-2">R</th>
+
+        <th title="Strongly Disagree" class="cursor-help">SD</th>
+        <th title="Disagree" class="cursor-help">D</th>
+        <th title="Neutral" class="cursor-help">N</th>
+        <th title="Agree" class="cursor-help">A</th>
+        <th title="Strongly Agree" class="cursor-help">SA</th>
+      </tr>
+    </thead>
+
+    <tbody id="surveyBody"></tbody>
+  </table>
+</div>
+
+
+  <!-- Pagination (Sticky on Mobile) -->
+<div class="sticky bottom-0 bg-white dark:bg-gray-900 py-3 flex justify-between items-center border-t mt-4">
+  <button onclick="prevPage()" class="btn">⬅ Prev</button>
+  <span id="pageIndicator" class="text-sm font-medium"></span>
+  <button onclick="nextPage()" class="btn">Next ➡</button>
+</div>
+
+
+  <!-- Actions -->
+  <div class="flex justify-center gap-3">
+    <button onclick="submitSurvey()" class="btn">Submit</button>
+    <button data-role="admin" onclick="viewSurveyAnalysis()" class="btn">Analysis</button>
+    <button data-role="admin" onclick="exportSurvey()" class="btn">Export</button>
+  </div>
+
+</section>
+
+
+
+
+
+
+<!-- ================= SURVEY RESPONSES (ADMIN) ================= -->
+<section id="view-survey-responses"
+         class="view hidden max-w-6xl mx-auto bg-white dark:bg-gray-900 shadow rounded-lg p-5">
+
+  <h2 class="text-xl font-semibold mb-4 text-center">
+    Survey Responses (Admin)
+  </h2>
+
+  <div class="overflow-x-auto">
+    <table class="w-full border rounded text-sm text-center">
+      <thead class="bg-gray-100 dark:bg-gray-800">
+        <tr>
+          <th>ID</th>
+          <th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>R5</th>
+          <th>R6</th><th>R7</th><th>R8</th><th>R9</th><th>R10</th>
+          <th>Role</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="responsesBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="flex justify-between items-center mt-4">
+  <button id="respPrevBtn"
+          onclick="prevRespPage()"
+          class="btn disabled:opacity-40"
+          disabled>
+    ⬅ Prev
+  </button>
+
+  <span id="respPageInfo" class="text-sm"></span>
+
+  <button id="respNextBtn"
+          onclick="nextRespPage()"
+          class="btn disabled:opacity-40"
+          disabled>
+    Next ➡
+  </button>
+</div>
+
+
+</section>
+
+
+
+
+
+
+<!-- ================= LOGS ================= -->
+<section id="view-logsSection" class="view hidden max-w-4xl mx-auto">
+  <h2 class="font-semibold mb-2">System Logs</h2>
+  <pre id="logsOut" class="output"></pre>
+</section>
+
+</main>
+</div>
+
+
+<script>
+/* =============================
+   HELPERS
+============================= */
+const el = (id) => document.getElementById(id);
+
+function toggleSidebar(){ el("sidebar").classList.toggle("hidden"); }
+function toggleDarkMode(){ document.documentElement.classList.toggle("dark"); }
+
+function autoGrow(t){
+  t.style.height = "auto";
+  t.style.height = t.scrollHeight + "px";
+}
+
+/* =============================
+   CHAT INPUT ICON LOGIC
+============================= */
+const chatInput = el("chatMsg");
+const defaultIcon = el("chatDefaultIcon"); // waveform / mic icon
+const sendIcon = el("chatSendIcon");       // arrow icon
+
+// Toggle icons while typing
+chatInput.addEventListener("input", () => {
+  if (chatInput.value.trim().length > 0) {
+    defaultIcon.classList.add("hidden");
+    sendIcon.classList.remove("hidden");
+  } else {
+    sendIcon.classList.add("hidden");
+    defaultIcon.classList.remove("hidden");
+  }
+});
+
+// ENTER key sends message (Shift+Enter = new line)
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    chat();
+  }
+});
+
+/* =============================
+   ROLE + NAV
+============================= */
+function setRole(role){
+  document.querySelectorAll("[data-role]").forEach(btn=>{
+    const r = btn.dataset.role;
+    btn.style.display =
+      (role === "admin" || r === "all" || r === role) ? "block" : "none";
+  });
+  showView("chat");
+}
+
+function showView(name){
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+
+  const view = el("view-" + name);
+  if (!view) return;
+
+  view.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* =============================
+   CHAT FUNCTION
+============================= */
+async function chat() {
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+
+  const chatOut = el("chatOut");
+  const scroll = el("chatScroll");
+
+  /* USER BUBBLE */
+  const userRow = document.createElement("div");
+  userRow.className = "chat-row user";
+
+  const userBubble = document.createElement("div");
+  userBubble.className = "bubble bg-black text-white";
+
+  const userContent = document.createElement("div");
+  userContent.textContent = msg;
+
+  userBubble.appendChild(userContent);
+  userRow.appendChild(userBubble);
+  chatOut.appendChild(userRow);
+
+  /* CLEAR INPUT + RESET ICON */
+  chatInput.value = "";
+  autoGrow(chatInput);
+  sendIcon.classList.add("hidden");
+  defaultIcon.classList.remove("hidden");
+
+  /* LOADING STATE */
+  el("chatSendBtn").disabled = true;
+  el("chatLoadingIcon").classList.remove("hidden");
+
+  requestAnimationFrame(() => {
+    scroll.scrollTop = scroll.scrollHeight;
+  });
+
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: msg })
+    });
+
+    if (!r.ok) throw new Error("Bad response");
+
+    const reply = await r.text();
+
+    /* AI BUBBLE */
+    const aiRow = document.createElement("div");
+    aiRow.className = "chat-row assistant";
+
+    const aiBubble = document.createElement("div");
+    aiBubble.className = "bubble";
+
+    const aiContent = document.createElement("div");
+    aiContent.className = "prose prose-gray dark:prose-invert prose-lg";
+    aiContent.innerHTML = marked.parse(reply);
+
+    aiBubble.appendChild(aiContent);
+    aiRow.appendChild(aiBubble);
+    chatOut.appendChild(aiRow);
+
+  } catch (err) {
+    const errRow = document.createElement("div");
+    errRow.className = "chat-row";
+
+    const errBubble = document.createElement("div");
+    errBubble.className = "bubble bg-red-100 text-red-700";
+    errBubble.textContent = "❌ Error contacting server";
+
+    errRow.appendChild(errBubble);
+    chatOut.appendChild(errRow);
+  } finally {
+    el("chatLoadingIcon").classList.add("hidden");
+    el("chatSendBtn").disabled = false;
+
+    requestAnimationFrame(() => {
+      scroll.scrollTop = scroll.scrollHeight;
+    });
+  }
+}
+/* =============================
+   INGEST
+============================= */
+async function ingest(){
+  const r = await fetch("/api/ingest",{
+    method:"POST",
+    credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text:el("kbText").value,source:el("kbSource").value})
+  });
+  el("ingestOut").textContent=await r.text();
+}
+
+/* =============================
+   LESSON
+============================= */
+async function lesson(){
+  const btn = el("lessonBtn");
+  const btnText = el("lessonBtnText");
+  const spinner = el("lessonSpinner");
+  const out = el("lessonOut");
+
+  // 🔄 Show loading state
+  btn.disabled = true;
+  btnText.textContent = "Generating...";
+  spinner.classList.remove("hidden");
+  out.textContent = "⏳ Generating lesson, please wait...\n";
+
+  try {
+    const r = await fetch("/api/lesson",{
+      method:"POST",
+      credentials:"same-origin",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        subject:el("subj").value,
+        topic:el("topic").value,
+        level:el("level").value,
+        duration_min:+el("dur").value
+      })
+    });
+
+    if(!r.ok){
+      throw new Error(`Server error ${r.status}`);
+    }
+
+    out.textContent = await r.text();
+
+  } catch (e) {
+    out.textContent = "❌ Error: " + e.message;
+    console.error(e);
+
+  } finally {
+    // ✅ Restore button state
+    btn.disabled = false;
+    btnText.textContent = "Generate";
+    spinner.classList.add("hidden");
+  }
+}
+
+/* =============================
+   FEEDBACK
+============================= */
+async function feedback(){
+  const r = await fetch("/api/feedback",{
+    method:"POST",
+    credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      lesson_text:el("lessonText").value,
+      rubric_text:el("rubricText").value
+    })
+  });
+  el("fbOut").textContent=await r.text();
+}
+
+/* =============================
+   SURVEY (PAGINATED + SAVED ANSWERS)
+============================= */
+let currentPage = 1;
+let pageSize = 10;
+let totalQuestions = 40;
+let answers = {}; // {1:5, 2:3, ...}
+
+function buildSurvey(){
+  totalQuestions = +el("sampleSize").value || 40;
+  currentPage = 1;
+  renderSurveyPage();
+}
+
+function renderSurveyPage(){
+  const tbody = el("surveyBody");
+  tbody.innerHTML = "";
+
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(start + pageSize - 1, totalQuestions);
+
+  for(let i = start; i <= end; i++){
+    let row = `
+      <tr class="border-t question-row" data-q="${i}">
+        <td class="p-2 font-semibold">R${i}</td>
+        ${[1,2,3,4,5].map(v => `
+          <td>
+            <input type="radio"
+                   name="r${i}"
+                   value="${v}"
+                   ${answers[i] === v ? "checked" : ""}
+                   onchange="saveAnswer(${i}, ${v})">
+          </td>
+        `).join("")}
+      </tr>
+    `;
+    tbody.insertAdjacentHTML("beforeend", row);
+  }
+
+  el("pageIndicator").innerText =
+    `Page ${currentPage} of ${Math.ceil(totalQuestions / pageSize)}`;
+
+  updateProgress();
+}
+
+function saveAnswer(q, v){
+  answers[q] = v;
+  updateProgress();
+}
+
+function updateProgress(){
+  const answeredCount = Object.keys(answers).length;
+  const percent = Math.round((answeredCount / totalQuestions) * 100);
+
+  if(el("progressBar")) el("progressBar").style.width = percent + "%";
+  if(el("progressText")) el("progressText").innerText = percent + "% completed";
+
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(start + pageSize - 1, totalQuestions);
+
+  for(let i = start; i <= end; i++){
+    const row = document.querySelector(`tr[data-q="${i}"]`);
+    if(!row) continue;
+    answers[i] ? row.classList.remove("bg-red-50") : row.classList.add("bg-red-50");
+  }
+}
+
+function nextPage(){
+  if(currentPage < Math.ceil(totalQuestions / pageSize)){
+    currentPage++;
+    renderSurveyPage();
+  }
+}
+
+function prevPage(){
+  if(currentPage > 1){
+    currentPage--;
+    renderSurveyPage();
+  }
+}
+
+async function submitSurvey(){
+  for(let i=1; i<=totalQuestions; i++){
+    if(!answers[i]){
+      alert(`Please complete question R${i}`);
+      return;
+    }
+  }
+
+  const payload = { respondent_id: Date.now(), role: "{{ role }}" };
+  for(let i=1; i<=totalQuestions; i++){
+    payload[`R${i}`] = answers[i];
+  }
+
+  const r = await fetch("/api/survey/submit",{
+    method:"POST",
+    credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+
+  alert(await r.text());
+}
+
+
+
+
+
+
+
+
+/* =============================
+   SURVEY ANALYSIS + EXPORT
+============================= */
+async function viewSurveyAnalysis(){
+  const r = await fetch("/api/survey/analysis",{credentials:"same-origin"});
+  el("logsOut").textContent = await r.text();
+  showView("logsSection"); // if your logs section is view-logsSection
+}
+
+function exportSurvey(){ window.location="/api/survey/export"; }
+
+
+
+
+
+
+/* =============================
+   LOGS
+============================= */
+async function logs(){
+  const r = await fetch("/api/logs",{credentials:"same-origin"});
+  el("logsOut").textContent = await r.text();
+  showView("logsSection"); // if your logs section is view-logsSection
+}
+
+/* =============================
+   ADMIN: SURVEY RESPONSES
+============================= */
+let currentRespPage = 1;
+let respTotalPages = 1;
+
+async function loadResponses(page = 1){
+  if(page < 1) return;
+
+  const r = await fetch(`/api/survey/responses?page=${page}`, {credentials:"same-origin"});
+  if(!r.ok){
+    alert("Failed to load responses");
+    return;
+  }
+
+  const data = await r.json();
+  currentRespPage = data.page;
+  respTotalPages = data.pages;
+
+  const tbody = el("responsesBody");
+  tbody.innerHTML = "";
+
+  if(data.data.length === 0){
+    tbody.innerHTML = `
+      <tr><td colspan="14" class="p-4 text-center text-gray-500">
+        No survey responses yet
+      </td></tr>`;
+  } else {
+    data.data.forEach(row=>{
+      const tr = document.createElement("tr");
+      tr.className = "border-t";
+      row.forEach(v=>{
+        const td = document.createElement("td");
+        td.className = "p-2";
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  el("respPageInfo").innerText = `Page ${currentRespPage} of ${respTotalPages}`;
+  updateRespButtons();
+}
+
+function updateRespButtons(){
+  const prevBtn = el("respPrevBtn");
+  const nextBtn = el("respNextBtn");
+  if(prevBtn) prevBtn.disabled = currentRespPage <= 1;
+  if(nextBtn) nextBtn.disabled = currentRespPage >= respTotalPages;
+}
+
+function nextRespPage(){
+  if(currentRespPage < respTotalPages) loadResponses(currentRespPage + 1);
+}
+
+function prevRespPage(){
+  if(currentRespPage > 1) loadResponses(currentRespPage - 1);
+}
+
+/* =============================
+   INIT
+============================= */
+document.addEventListener("DOMContentLoaded", ()=>{
+  setRole("{{ role }}");
+  buildSurvey();
+
+  // Ensure correct icon state on load
+  sendIcon.classList.add("hidden");
+  defaultIcon.classList.remove("hidden");
+});
+</script>
+
+
+
+
+
+
+<style>
+.nav-btn{width:100%;text-align:left;padding:.5rem;border-radius:.5rem}
+.nav-btn:hover{background:#374151}
+.btn{padding:.5rem 1rem;background:black;color:white;border-radius:.5rem}
+.input{width:100%;border:1px solid #ccc;padding:.5rem;border-radius:.5rem;margin-bottom:.5rem}
+.output{background:#e5e7eb;padding:1rem;border-radius:.75rem;white-space:pre-wrap}
+</style>
+
+</body>
+</html>

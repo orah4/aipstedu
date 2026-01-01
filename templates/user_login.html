@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Login • AI–ICT</title>
+</head>
+<body class="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+
+  <div class="w-full max-w-md bg-white rounded-2xl shadow p-6">
+    <h1 class="text-xl font-semibold mb-2">AI–ICT Instructional Support</h1>
+    <p class="text-sm text-gray-500 mb-6">Login to continue</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-4 space-y-2">
+          {% for category, message in messages %}
+            <div class="text-sm px-3 py-2 rounded bg-red-50 text-red-700 border border-red-200">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="space-y-3">
+      <input name="username" class="w-full border rounded-xl p-3" placeholder="Username" required>
+      <input type="password" name="password" class="w-full border rounded-xl p-3" placeholder="Password" required>
+      <button class="w-full bg-black text-white rounded-xl p-3">Login</button>
+    </form>
+
+    <div class="mt-4 text-xs text-gray-500">
+      Default Admin: <b>admin</b> / <b>admin123</b> (change later)
+    </div>
+  </div>
+
+</body>
+</html>

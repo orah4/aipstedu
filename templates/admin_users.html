@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Admin • User Management</title>
+</head>
+<body class="min-h-screen bg-gray-100 p-6">
+
+  <div class="max-w-5xl mx-auto space-y-6">
+    <div class="bg-white rounded-2xl shadow p-5 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-semibold">Admin Dashboard</h1>
+        <p class="text-sm text-gray-500">Logged in as {{ username }} ({{ role }})</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="{{ url_for('home') }}" class="px-3 py-2 rounded-xl border">Go to App</a>
+        <a href="{{ url_for('logout') }}" class="px-3 py-2 rounded-xl bg-black text-white">Logout</a>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="space-y-2">
+          {% for category, message in messages %}
+            <div class="text-sm px-3 py-2 rounded bg-blue-50 text-blue-800 border border-blue-200">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="bg-white rounded-2xl shadow p-5">
+      <h2 class="font-semibold mb-3">Create User</h2>
+      <form method="POST" action="{{ url_for('admin_create_user') }}" class="grid md:grid-cols-4 gap-3">
+        <input name="username" class="border rounded-xl p-3" placeholder="username" required>
+        <input name="password" class="border rounded-xl p-3" placeholder="password" required>
+        <select name="role" class="border rounded-xl p-3">
+          <option value="student">student</option>
+          <option value="lecturer">lecturer</option>
+          <option value="admin">admin</option>
+        </select>
+        <button class="rounded-xl bg-black text-white p-3">Create</button>
+      </form>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-5">
+      <h2 class="font-semibold mb-3">Users</h2>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-gray-500">
+            <tr>
+              <th class="py-2">Username</th>
+              <th class="py-2">Role</th>
+              <th class="py-2">Created</th>
+              <th class="py-2"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            {% for u in users %}
+            <tr>
+              <td class="py-2 font-medium">{{ u.username }}</td>
+              <td class="py-2">{{ u.role }}</td>
+              <td class="py-2">{{ u.created_at }}</td>
+              <td class="py-2 text-right">
+                <form method="POST" action="{{ url_for('admin_delete_user', user_id=u.id) }}"
+                      onsubmit="return confirm('Delete user {{ u.username }}?');">
+                  <button class="px-3 py-1 rounded-lg border">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

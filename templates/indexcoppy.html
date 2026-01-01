@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>AI–ICT Teacher Education Prototype</title>
+</head>
+<body class="bg-gray-50">
+  <div class="max-w-5xl mx-auto p-6 space-y-6">
+    <div class="bg-white rounded-2xl shadow p-6">
+      <h1 class="text-2xl font-bold">AI–ICT Instructional Support (Prototype)</h1>
+      <p class="text-gray-600">
+        Offline-first GGUF + RAG + Human-in-the-loop (aligned to your Figure 3.2 architecture).
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl shadow p-6 space-y-3">
+        <h2 class="font-semibold">1) Ingest Knowledge Base Text</h2>
+        <textarea id="kbText" class="w-full border rounded-xl p-3 h-32" placeholder="Paste curriculum/rubric/policy text..."></textarea>
+        <input id="kbSource" class="w-full border rounded-xl p-3" placeholder="Source name e.g. curriculum_ict.txt" />
+        <button onclick="ingest()" class="px-4 py-2 rounded-xl bg-black text-white">Ingest</button>
+        <div id="ingestOut" class="text-sm text-gray-700"></div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow p-6 space-y-3">
+        <h2 class="font-semibold">2) Tutor Chat (RAG)</h2>
+        <input id="chatMsg" class="w-full border rounded-xl p-3" placeholder="Ask a question..." />
+        <button onclick="chat()" class="px-4 py-2 rounded-xl bg-black text-white">Send</button>
+        <pre id="chatOut" class="text-sm bg-gray-100 p-3 rounded-xl whitespace-pre-wrap"></pre>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow p-6 space-y-3">
+        <h2 class="font-semibold">3) Generate Lesson Plan</h2>
+        <input id="subj" class="w-full border rounded-xl p-3" placeholder="Subject e.g. ICT / Mathematics" />
+        <input id="topic" class="w-full border rounded-xl p-3" placeholder="Topic e.g. Spreadsheet Skills" />
+        <input id="level" class="w-full border rounded-xl p-3" value="College of Education" />
+        <input id="dur" type="number" class="w-full border rounded-xl p-3" value="40" />
+        <button onclick="lesson()" class="px-4 py-2 rounded-xl bg-black text-white">Generate</button>
+        <pre id="lessonOut" class="text-sm bg-gray-100 p-3 rounded-xl whitespace-pre-wrap"></pre>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow p-6 space-y-3">
+        <h2 class="font-semibold">4) Rubric Feedback (Supervisor)</h2>
+        <textarea id="lessonText" class="w-full border rounded-xl p-3 h-28" placeholder="Paste lesson plan here..."></textarea>
+        <textarea id="rubricText" class="w-full border rounded-xl p-3 h-28" placeholder="Paste rubric here..."></textarea>
+        <button onclick="feedback()" class="px-4 py-2 rounded-xl bg-black text-white">Evaluate</button>
+        <pre id="fbOut" class="text-sm bg-gray-100 p-3 rounded-xl whitespace-pre-wrap"></pre>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-6">
+      <h2 class="font-semibold mb-3">Recent Logs</h2>
+      <button onclick="logs()" class="px-4 py-2 rounded-xl bg-black text-white">Refresh Logs</button>
+      <pre id="logsOut" class="text-sm bg-gray-100 p-3 rounded-xl whitespace-pre-wrap mt-3"></pre>
+    </div>
+  </div>
+
+<script>
+async function ingest(){
+  const text = document.getElementById('kbText').value;
+  const source = document.getElementById('kbSource').value || "manual_input";
+  const res = await fetch('/api/ingest', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text, source})
+  });
+  document.getElementById('ingestOut').textContent = await res.text();
+}
+
+async function chat(){
+  const message = document.getElementById('chatMsg').value;
+  const res = await fetch('/api/chat', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message})
+  });
+  document.getElementById('chatOut').textContent = await res.text();
+}
+
+async function lesson(){
+  const subject = document.getElementById('subj').value;
+  const topic = document.getElementById('topic').value;
+  const level = document.getElementById('level').value;
+  const duration_min = parseInt(document.getElementById('dur').value || "40");
+  const res = await fetch('/api/lesson', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({subject, topic, level, duration_min})
+  });
+  document.getElementById('lessonOut').textContent = await res.text();
+}
+
+async function feedback(){
+  const lesson_text = document.getElementById('lessonText').value;
+  const rubric_text = document.getElementById('rubricText').value;
+  const res = await fetch('/api/feedback', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({lesson_text, rubric_text})
+  });
+  document.getElementById('fbOut').textContent = await res.text();
+}
+
+async function logs(){
+  const res = await fetch('/api/logs');
+  document.getElementById('logsOut').textContent = await res.text();
+}
+</script>
+</body>
+</html>
