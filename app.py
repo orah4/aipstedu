@@ -726,10 +726,8 @@ def survey_responses():
 #     init_users_db()
 #     init_survey_db()
 #     app.run(host="127.0.0.1", port=5000, debug=True,use_reloader=False)
-@app.before_serving
-def setup():
-    init_users_db()
-    init_survey_db()
+init_users_db()
+init_survey_db()
 
 if __name__ == "__main__":
     app.run(debug=True)
