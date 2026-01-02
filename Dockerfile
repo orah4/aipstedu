@@ -46,7 +46,7 @@ RUN pip install --prefer-binary \
     llama-cpp-python
 
 # 3️⃣ Remaining dependencies
-RUN pip install --prefer-binary -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # =============================
 # App Source
