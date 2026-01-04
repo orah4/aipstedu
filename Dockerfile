@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install in STAGES to reduce RAM peak
 # =============================
 
-# 1️⃣ Core scientific stack (must be first)
+# 1️⃣ Core scientific stack (install first, stable)
 COPY requirements.txt .
 RUN pip install --prefer-binary \
     numpy \
@@ -40,7 +40,7 @@ RUN pip install --prefer-binary \
     joblib \
     threadpoolctl
 
-# 2️⃣ Heavy native ML deps
+# 2️⃣ Heavy native ML deps (separate layer = safer)
 RUN pip install --prefer-binary \
     faiss-cpu \
     llama-cpp-python
@@ -65,10 +65,11 @@ EXPOSE 8000
 
 # =============================
 # Start Server (Gunicorn)
+# CRITICAL FIX: longer timeout + single worker
 # =============================
-CMD gunicorn \
-    -w 1 \
-    -k sync \
-    --timeout 180 \
-    -b 0.0.0.0:${PORT:-8000} \
-    app:app
+CMD gunicorn app:app \
+    --bind 0.0.0.0:${PORT:-8000} \
+    --workers 1 \
+    --threads 1 \
+    --worker-class sync \
+    --timeout 300
