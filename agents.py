@@ -33,16 +33,31 @@ SYSTEM_CORE = (
 
 
 # =========================================================
-# RAG CONTEXT FORMATTER
+# RAG CONTEXT FORMATTER (🔥 SAFE LIMIT)
 # =========================================================
-def _format_context(hits):
+def _format_context(hits, max_chars: int = 2000):
+    """
+    Format RAG hits safely.
+    HARD LIMIT to prevent GGUF context overflow.
+    """
     if not hits:
         return "No retrieved context."
+
     lines = []
+    total = 0
+
     for i, h in enumerate(hits, 1):
-        lines.append(
-            f"[{i}] Source: {h['source']} (score={h['score']:.3f})\n{h['text']}"
+        block = (
+            f"[{i}] Source: {h['source']} (score={h['score']:.3f})\n"
+            f"{h['text']}\n"
         )
+
+        total += len(block)
+        if total > max_chars:
+            break
+
+        lines.append(block)
+
     return "\n".join(lines)
 
 
@@ -65,7 +80,7 @@ def tutor_chat_with_role(user_message: str, role: str):
     if intent == "greeting":
         return "Hello 👋 How can I help you today?"
 
-    # 🔹 Short chat = light GGUF call
+    # 🔹 Short chat = VERY light GGUF call
     if intent == "short_chat":
         return generate(
             "You are a friendly assistant. Respond briefly and naturally.",
@@ -96,10 +111,10 @@ def tutor_chat_with_role(user_message: str, role: str):
         )
 
     # =====================================================
-    # RAG + LLM
+    # RAG + LLM (🔥 SAFE LIMITS)
     # =====================================================
     hits = search(user_message)
-    ctx = _format_context(hits)
+    ctx = _format_context(hits, max_chars=2000)
 
     user_prompt = (
         f"Context:\n{ctx}\n\n"
@@ -110,15 +125,19 @@ def tutor_chat_with_role(user_message: str, role: str):
         "- Only go deep if the user signals readiness"
     )
 
-    return generate(system_prompt, user_prompt)
+    return generate(
+        system_prompt,
+        user_prompt,
+        max_tokens=256  # 🔥 CRITICAL: prevents GGUF 500 errors
+    )
 
 
 # =========================================================
-# LESSON PLAN GENERATOR
+# LESSON PLAN GENERATOR (SAFE)
 # =========================================================
 def generate_lesson_plan(topic: str, level: str, subject: str, duration_min: int):
     hits = search(f"{subject} {topic} curriculum objectives lesson plan")
-    ctx = _format_context(hits)
+    ctx = _format_context(hits, max_chars=2000)
 
     user_prompt = f"""RAG CONTEXT:
 {ctx}
@@ -140,7 +159,11 @@ Include:
 7) Reflection prompts for the pre-service teacher
 """
 
-    plan = generate(SYSTEM_CORE, user_prompt)
+    plan = generate(
+        SYSTEM_CORE,
+        user_prompt,
+        max_tokens=512
+    )
 
     if REQUIRE_LECTURER_REVIEW:
         plan += (
@@ -155,11 +178,11 @@ Include:
 
 
 # =========================================================
-# RUBRIC FEEDBACK GENERATOR
+# RUBRIC FEEDBACK GENERATOR (SAFE)
 # =========================================================
 def rubric_feedback(lesson_text: str, rubric_text: str):
     hits = search("practicum supervision rubric lesson plan evaluation")
-    ctx = _format_context(hits)
+    ctx = _format_context(hits, max_chars=2000)
 
     user_prompt = f"""RAG CONTEXT:
 {ctx}
@@ -179,7 +202,11 @@ LESSON PLAN:
 {lesson_text}
 """
 
-    fb = generate(SYSTEM_CORE, user_prompt)
+    fb = generate(
+        SYSTEM_CORE,
+        user_prompt,
+        max_tokens=384
+    )
 
     if REQUIRE_LECTURER_REVIEW:
         fb += "\n\nNOTE: Lecturer must validate this feedback before final submission."

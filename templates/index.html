@@ -826,17 +826,10 @@ async function chat(){
     // if(!r.ok) throw new Error("Bad response");
 
     // const reply = await r.text();
-    if (!r.ok) {
-  const text = await r.text();
-  alert(
-    "STATUS: " + r.status + "\n\n" +
-    "SERVER RESPONSE:\n" +
-    text.substring(0, 300)
-  );
-  throw new Error("Request failed");
-}
-
 const reply = await r.text();
+if (!r.ok) {
+  throw new Error(reply || "Server error");
+}
 
 
     /* AI BUBBLE */

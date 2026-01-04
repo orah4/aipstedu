@@ -39,12 +39,19 @@ def _api_chat(
         "Content-Type": "application/json",
     }
 
+    # payload = {
+    #     "model": "gguf-local",
+    #     "messages": messages,
+    #     "temperature": float(temperature),
+    #     "max_tokens": int(max_tokens),
+    # }
+
     payload = {
-        "model": "gguf-local",
-        "messages": messages,
-        "temperature": float(temperature),
-        "max_tokens": int(max_tokens),
-    }
+    "model": "gguf-local",
+    "messages": messages,
+    "temperature": float(temperature),
+    "max_tokens": min(int(max_tokens), 256),  # 🔥 LIMIT OUTPUT
+}
 
     try:
         resp = requests.post(
