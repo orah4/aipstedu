@@ -17,7 +17,8 @@ from pydantic import ValidationError
 from config import KB_DIR, UPLOAD_DIR
 from db import init_db as init_logs_db, log_interaction, recent_logs
 from rag import ingest_text
-from agents import tutor_chat, generate_lesson_plan, rubric_feedback
+#from agents import tutor_chat,  generate_lesson_plan, rubric_feedback
+from agents import tutor_chat_with_role, generate_lesson_plan, rubric_feedback
 from schemas import ChatRequest, LessonRequest, FeedbackRequest
 
 # =============================
@@ -299,14 +300,15 @@ def api_chat():
         req = ChatRequest(**payload)
     except ValidationError as e:
         return f"Validation error: {e}", 400
-    except Exception as e:
-        return f"Error parsing request: {e}", 400
 
     try:
-        out = tutor_chat(req.message)
+        out = tutor_chat_with_role(
+            req.message,
+            session.get("role", "student")  # ✅ student / lecturer / admin
+        )
 
         log_interaction(
-            role=session.get("role"),
+            role=session.get("role", "student"),
             action="chat",
             user_input=req.message,
             output=out,
@@ -314,8 +316,10 @@ def api_chat():
         )
 
         return out
+
     except Exception as e:
         return f"Error in chat engine: {e}", 500
+
 
 
 @app.post("/api/lesson")
