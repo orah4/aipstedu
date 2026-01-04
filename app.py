@@ -300,11 +300,13 @@ def api_chat():
         req = ChatRequest(**payload)
     except ValidationError as e:
         return f"Validation error: {e}", 400
+    except Exception as e:
+        return f"Error parsing request: {e}", 400
 
     try:
         out = tutor_chat_with_role(
             req.message,
-            session.get("role", "student")  # ✅ student / lecturer / admin
+            session.get("role", "student")
         )
 
         log_interaction(
