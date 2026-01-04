@@ -823,9 +823,21 @@ async function chat(){
       body:JSON.stringify({ message: msg })
     });
 
-    if(!r.ok) throw new Error("Bad response");
+    // if(!r.ok) throw new Error("Bad response");
 
-    const reply = await r.text();
+    // const reply = await r.text();
+    if (!r.ok) {
+  const text = await r.text();
+  alert(
+    "STATUS: " + r.status + "\n\n" +
+    "SERVER RESPONSE:\n" +
+    text.substring(0, 300)
+  );
+  throw new Error("Request failed");
+}
+
+const reply = await r.text();
+
 
     /* AI BUBBLE */
 const aiRow = document.createElement("div");
